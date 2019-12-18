@@ -1,4 +1,4 @@
-# P-SARRET
+# P-SARRET  - Plugin SAR displacement ReusE Timeseries 
 Python script to visualize SAR displacement time series
 
 Stefano Crema Giacomo Titti, Alessandro Sarretta and Matteo Mantovani, CNR-IRPI, Padova, Dec. 2019

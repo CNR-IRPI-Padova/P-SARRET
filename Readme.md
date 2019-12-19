@@ -7,4 +7,4 @@ The script needs to be loaded in the QGIS Python editor window and works upon se
 Column range to use as per-point time series might be specified by the user modyfing the script
 
 Contents:
-Python scripts for QGIS v 2.x and 3.x
+Python scripts for QGIS v 3.x

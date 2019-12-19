@@ -3,5 +3,5 @@ name=P-SARRET
 description=This plugin interpolate time-series of features selected
 version=1.0
 qgisMinimumVersion=3.0
-author=Stefano Crema & Giacomo Titti
+author=Stefano Crema, Giacomo Titti, Alessandro Sarretta & Matteo Mantovani
 email=stefano.crema@irpi.cnr.it

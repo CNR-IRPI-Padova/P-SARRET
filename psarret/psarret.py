@@ -54,18 +54,18 @@ class psarretPlugin:
                 plt.ylabel('Displacement [cm]')
                 plt.xlabel('Date')
                 plt.xticks(rotation=45)
-                plt.title('ID '+attrs[0]+' Scan series - rate = '+str(coef[0]))
+                plt.title('ID '+attrs[0]+' Scan series - linear rate = '+str(coef[0]))
                 plt.grid(b=True, which='major', color='#666666', linestyle='-')
                 plt.minorticks_on()
                 plt.grid(b=True, which='minor', color='#999999', linestyle='-', alpha=0.2)
                 plt.show()
             #plot total figure
             plt.figure()
+            ax = plt.gca()
             for t in range(len(ys)):
-                plt.plot(DATES[t],ys[t])#if date is not desired, plot simply x
+                color = next(ax._get_lines.prop_cycler)['color']
+                plt.plot(DATES[t],ys[t],linestyle='-',markeredgecolor='none',marker='o', color=color)
             plt.legend(IDs)
-            for t in range(len(ys)):
-                plt.plot(DATES[t],ys[t],'bo')#if date is not desired, plot simply x
             plt.ylabel('Displacement [cm]')
             plt.xlabel('Date')
             plt.xticks(rotation=45)

@@ -40,7 +40,7 @@ If you want to use your own data, be sure to adapt that part of code matching th
 
 ## Credits
 
-Stefano Crema Giacomo Titti, Alessandro Sarretta and Matteo Mantovani, CNR-IRPI, Padova, Dec. 2019
+Stefano Crema, Giacomo Titti, Alessandro Sarretta and Matteo Mantovani, CNR-IRPI, Padova, Dec. 2019
 
 ## License
 

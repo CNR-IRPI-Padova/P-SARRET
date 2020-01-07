@@ -16,7 +16,7 @@ It can be installed downloading this repository, unzipping the file and copying 
 
 ## Usage
 
-To test the use of the plugin, you can use the file [testDataset.geojson](./examples/testDataset.geojson) in the folder _examples_, containing 158 points. For each point, several columns are present containing a displacement values (in cm), derived from SAR images using [...]
+To test the use of the plugin, you can use the file [testDataset.shp](./examples/testDataset.shp) in the folder _examples_, containing 158 points. For each point, several columns are present containing a displacement values (in cm), derived from SAR images using [...]
 
 The workflow to use the plugin, once installed and activated, is the following:
 1. select some (1 or many) point features in the canvas,

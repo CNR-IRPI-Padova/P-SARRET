@@ -1,0 +1,411 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>MORPHEUS — WebGIS Swipe</title>
+
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/ol@9.2.4/ol.css"/>
+  <script src="https://cdn.jsdelivr.net/npm/ol@9.2.4/dist/ol.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet"/>
+
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0d1117;
+      --surface: #161b22;
+      --surface2: #1c2128;
+      --border: #30363d;
+      --accent: #58a6ff;
+      --accent-r: #f0883e;
+      --text: #e6edf3;
+      --muted: #8b949e;
+      --panel-w: 260px;
+    }
+
+    html, body { width: 100%; height: 100%; background: var(--bg); overflow: hidden; font-family: 'Syne', sans-serif; color: var(--text); }
+
+    #map { position: absolute; inset: 0; }
+
+    /* ── Left Sidebar ── */
+    #sidebar {
+      position: absolute; top: 0; left: 0; bottom: 0;
+      width: var(--panel-w);
+      background: rgba(13,17,23,0.92);
+      backdrop-filter: blur(8px);
+      border-right: 1px solid var(--border);
+      z-index: 100;
+      display: flex; flex-direction: column;
+      transition: transform 0.3s ease;
+    }
+    #sidebar.collapsed { transform: translateX(calc(-1 * var(--panel-w))); }
+
+    .sidebar-header {
+      padding: 18px 16px 14px;
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+    .sidebar-title { font-size: 0.95rem; font-weight: 800; letter-spacing: 0.05em; text-transform: uppercase; }
+    .sidebar-sub   { font-family: 'JetBrains Mono', monospace; font-size: 0.62rem; color: var(--muted); margin-top: 3px; }
+
+    .section-label {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.6rem; font-weight: 600; letter-spacing: 0.12em;
+      color: var(--muted); text-transform: uppercase;
+      padding: 12px 16px 6px; flex-shrink: 0;
+    }
+
+    #layer-list { overflow-y: auto; flex: 1; padding-bottom: 8px; }
+    #layer-list::-webkit-scrollbar { width: 4px; }
+    #layer-list::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+    .layer-item {
+      display: flex; align-items: center; gap: 10px;
+      padding: 8px 16px; cursor: pointer;
+      transition: background 0.15s; user-select: none;
+    }
+    .layer-item:hover { background: var(--surface2); }
+    .layer-item input[type="checkbox"] { display: none; }
+    .check-box {
+      width: 16px; height: 16px; flex-shrink: 0;
+      border: 1.5px solid var(--border); border-radius: 3px;
+      display: flex; align-items: center; justify-content: center;
+      transition: background 0.15s, border-color 0.15s;
+    }
+    .layer-item.checked .check-box { background: var(--accent); border-color: var(--accent); }
+    .check-box::after {
+      content: ''; width: 4px; height: 7px;
+      border: 2px solid #fff; border-top: none; border-left: none;
+      transform: rotate(45deg) translate(-1px, -1px); display: none;
+    }
+    .layer-item.checked .check-box::after { display: block; }
+    .layer-name { font-size: 0.78rem; line-height: 1.3; color: var(--text); }
+    .layer-item:not(.checked) .layer-name { color: var(--muted); }
+
+    /* ── Left toggle button ── */
+    #toggle-btn {
+      position: absolute; top: 50%; left: var(--panel-w);
+      transform: translateY(-50%);
+      z-index: 101; width: 22px; height: 44px;
+      background: rgba(13,17,23,0.92);
+      border: 1px solid var(--border); border-left: none;
+      border-radius: 0 6px 6px 0;
+      cursor: pointer; display: flex; align-items: center; justify-content: center;
+      color: var(--muted); font-size: 0.65rem;
+      transition: left 0.3s, color 0.2s;
+    }
+    #toggle-btn:hover { color: var(--text); }
+    #sidebar.collapsed ~ #toggle-btn { left: 0; }
+    .toggle-arrow { transition: transform 0.3s; }
+    #sidebar.collapsed ~ #toggle-btn .toggle-arrow { transform: rotate(180deg); }
+
+    /* ── Right swipe panel ── */
+    #swipe-panel {
+      position: absolute; top: 50%; right: 0;
+      transform: translateY(-50%);
+      z-index: 100;
+      background: rgba(13,17,23,0.92);
+      backdrop-filter: blur(8px);
+      border: 1px solid var(--border); border-right: none;
+      border-radius: 8px 0 0 8px;
+      padding: 14px 14px 14px 16px;
+      display: flex; flex-direction: column; gap: 8px;
+      min-width: 200px;
+      transition: transform 0.3s ease, opacity 0.3s;
+    }
+    #swipe-panel.collapsed { transform: translateY(-50%) translateX(calc(100% - 22px)); }
+
+    #swipe-panel-toggle {
+      position: absolute; top: 50%; left: -22px;
+      transform: translateY(-50%);
+      width: 22px; height: 44px;
+      background: rgba(13,17,23,0.92);
+      border: 1px solid var(--border); border-right: none;
+      border-radius: 6px 0 0 6px;
+      cursor: pointer; display: flex; align-items: center; justify-content: center;
+      color: var(--muted); font-size: 0.65rem;
+      transition: color 0.2s;
+    }
+    #swipe-panel-toggle:hover { color: var(--text); }
+    .swipe-toggle-arrow { transition: transform 0.3s; }
+    #swipe-panel.collapsed .swipe-toggle-arrow { transform: rotate(180deg); }
+
+    .swipe-panel-title {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.6rem; font-weight: 600; letter-spacing: 0.12em;
+      color: var(--muted); text-transform: uppercase;
+    }
+    .swipe-badge {
+      display: inline-flex; align-items: center; gap: 6px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.62rem; font-weight: 600; letter-spacing: 0.08em;
+      color: var(--accent-r);
+      background: rgba(240,136,62,0.1); border: 1px solid rgba(240,136,62,0.25);
+      border-radius: 3px; padding: 3px 8px;
+    }
+    .swipe-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--accent-r); box-shadow: 0 0 5px var(--accent-r); flex-shrink: 0; }
+
+    select#swipe-select {
+      width: 100%;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-left: 3px solid var(--accent-r);
+      color: var(--text);
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.7rem;
+      padding: 7px 10px;
+      border-radius: 4px;
+      cursor: pointer; outline: none;
+      transition: border-color 0.2s;
+    }
+    select#swipe-select:hover { border-color: rgba(240,136,62,0.6); }
+
+    /* ── Swipe line & handle ── */
+    #swipe-line {
+      position: absolute; top: 0; bottom: 0; width: 2px;
+      background: linear-gradient(to bottom,
+        transparent 0%, rgba(255,255,255,0.06) 5%,
+        rgba(255,255,255,0.55) 50%,
+        rgba(255,255,255,0.06) 95%, transparent 100%
+      );
+      pointer-events: none; z-index: 10; transform: translateX(-50%);
+      opacity: 0; transition: opacity 0.3s;
+    }
+    #swipe-handle {
+      position: absolute; top: 50%; z-index: 11;
+      width: 44px; height: 44px; border-radius: 50%;
+      background: var(--surface); border: 2px solid var(--border);
+      transform: translate(-50%, -50%);
+      cursor: grab; display: flex; align-items: center; justify-content: center; gap: 3px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.6);
+      transition: border-color 0.2s, box-shadow 0.2s, transform 0.15s, opacity 0.3s;
+      user-select: none; opacity: 0;
+    }
+    #swipe-handle:hover {
+      border-color: rgba(255,255,255,0.4);
+      box-shadow: 0 4px 30px rgba(0,0,0,0.8), 0 0 0 1px rgba(255,255,255,0.1);
+      transform: translate(-50%, -50%) scale(1.08);
+    }
+    #swipe-handle.dragging { cursor: grabbing; border-color: rgba(255,255,255,0.6); transform: translate(-50%, -50%) scale(1.12); }
+    #swipe-handle::before, #swipe-handle::after {
+      content: ''; position: absolute; top: 50%; transform: translateY(-50%);
+      width: 7px; height: 7px; border-radius: 50%;
+    }
+    #swipe-handle::before { left: 6px; background: var(--accent); box-shadow: 0 0 6px var(--accent); }
+    #swipe-handle::after  { right: 6px; background: var(--accent-r); box-shadow: 0 0 6px var(--accent-r); }
+    .arrow { width: 0; height: 0; border-top: 5px solid transparent; border-bottom: 5px solid transparent; }
+    .arrow-left  { border-right: 7px solid var(--muted); }
+    .arrow-right { border-left:  7px solid var(--muted); }
+
+    #swipe-right-tag {
+      position: absolute; top: 50%; z-index: 12;
+      font-family: 'JetBrains Mono', monospace; font-size: 0.62rem; font-weight: 600;
+      letter-spacing: 0.08em; padding: 3px 8px; border-radius: 3px;
+      background: rgba(240,136,62,0.15); border: 1px solid rgba(240,136,62,0.3); color: var(--accent-r);
+      pointer-events: none; transform: translateY(-50%); white-space: nowrap; opacity: 0;
+      transition: opacity 0.3s;
+    }
+
+    /* ── OL controls ── */
+    .ol-control button {
+      background: var(--surface) !important; border: 1px solid var(--border) !important;
+      color: var(--text) !important; border-radius: 4px !important;
+    }
+    .ol-control button:hover { background: var(--border) !important; }
+    .ol-zoom { top: auto !important; bottom: 40px !important; right: 16px !important; left: auto !important; }
+    .ol-attribution { display: none !important; }
+
+    /* ── Loading ── */
+    #loading {
+      position: absolute; inset: 0; z-index: 200; background: var(--bg);
+      display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px;
+      transition: opacity 0.6s;
+    }
+    #loading.hidden { opacity: 0; pointer-events: none; }
+    .spinner { width: 36px; height: 36px; border: 3px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.8s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .loading-text { font-family: 'JetBrains Mono', monospace; font-size: 0.75rem; color: var(--muted); letter-spacing: 0.1em; }
+  </style>
+</head>
+<body>
+
+<div id="loading"><div class="spinner"></div><div class="loading-text">LOADING…</div></div>
+<div id="map"></div>
+<div id="swipe-line"></div>
+<div id="swipe-handle"><div class="arrow arrow-left"></div><div class="arrow arrow-right"></div></div>
+<div id="swipe-right-tag"></div>
+
+<!-- Left sidebar -->
+<div id="sidebar">
+  <div class="sidebar-header">
+    <div class="sidebar-title">MORPHEUS</div>
+    <div class="sidebar-sub">IRPI · CNR — Layer Control</div>
+  </div>
+  <div class="section-label">Layers (top → bottom)</div>
+  <div id="layer-list"></div>
+</div>
+<button id="toggle-btn" title="Toggle panel"><span class="toggle-arrow">◀</span></button>
+
+<!-- Right swipe panel -->
+<div id="swipe-panel">
+  <button id="swipe-panel-toggle" title="Toggle swipe panel"><span class="swipe-toggle-arrow">▶</span></button>
+  <div class="swipe-panel-title">Swipe Overlay</div>
+  <div class="swipe-badge"><div class="swipe-dot"></div>shown on right side</div>
+  <select id="swipe-select">
+    <option value="">— none —</option>
+  </select>
+</div>
+
+<script>
+  const WMS_URL = 'https://hydrogeo-gis.irpi.cnr.it/index.php/lizmap/service?repository=hrg&project=MORPHEUS';
+
+  // ── Layer definitions
+  // Order here = TOC order = render order: index 0 is on top, last is on bottom (above OSM).
+  const WMS_LAYERS = [
+    { id: 'density_map_1_s500v04_1_5d0_3k61', label: 'Movement Density Areas',   defaultOn: false },
+    { id: 'movement_index_viz',               label: 'Movement Index 2009–2018', defaultOn: false },
+    { id: 'DoD_2018-2009',                    label: 'DoD 2018–2009',            defaultOn: false },
+    { id: 'Hillshade_But_2018_1m',            label: 'Hillshade 2018',           defaultOn: false },
+    { id: 'Hillshade_2009',                   label: 'Hillshade 2009',           defaultOn: true  },
+  ];
+
+  // ── WMS layer factory (PNG + transparent)
+  function makeWMS(layerId, visible) {
+    return new ol.layer.Image({
+      visible,
+      source: new ol.source.ImageWMS({
+        url: WMS_URL,
+        params: {
+          SERVICE: 'WMS', VERSION: '1.3.0',
+          LAYERS: layerId,
+          FORMAT: 'image/png',
+          TRANSPARENT: 'true',
+          CRS: 'EPSG:3857'
+        },
+        ratio: 1, serverType: 'qgis'
+      })
+    });
+  }
+
+  // Build layer objects
+  const osmLayer = new ol.layer.Tile({ source: new ol.source.OSM({ attributions: [] }) });
+  const wmsLayers = {};
+  WMS_LAYERS.forEach(l => { wmsLayers[l.id] = makeWMS(l.id, l.defaultOn); });
+
+  // Map layers: OSM at bottom, then WMS in REVERSE TOC order so index-0 TOC item ends up on top
+  const map = new ol.Map({
+    target: 'map',
+    layers: [
+      osmLayer,
+      ...[...WMS_LAYERS].reverse().map(l => wmsLayers[l.id])
+    ],
+    view: new ol.View({
+      center: ol.proj.fromLonLat([13.036, 46.513]),
+      zoom: 13
+    }),
+    controls: ol.control.defaults.defaults({ attribution: false })
+  });
+
+  // ── Build TOC
+  const layerList = document.getElementById('layer-list');
+
+  // OSM at bottom of TOC (it is always the bottom layer)
+  WMS_LAYERS.forEach(l => layerList.appendChild(makeLayerItem(l.id, l.label, l.defaultOn)));
+  layerList.appendChild(makeLayerItem('osm', 'OpenStreetMap (basemap)', true));
+
+  function makeLayerItem(id, label, checked) {
+    const item = document.createElement('label');
+    item.className = 'layer-item' + (checked ? ' checked' : '');
+    item.innerHTML = `
+      <input type="checkbox" ${checked ? 'checked' : ''}/>
+      <div class="check-box"></div>
+      <span class="layer-name">${label}</span>
+    `;
+    item.querySelector('input').addEventListener('change', e => {
+      item.classList.toggle('checked', e.target.checked);
+      if (id === 'osm') osmLayer.setVisible(e.target.checked);
+      else wmsLayers[id].setVisible(e.target.checked);
+    });
+    return item;
+  }
+
+  // ── Swipe select
+  const swipeSel = document.getElementById('swipe-select');
+  WMS_LAYERS.forEach(l => swipeSel.append(new Option(l.label, l.id)));
+
+  let swipeLayer = null;
+  swipeSel.addEventListener('change', () => {
+    if (swipeLayer) { map.getLayers().remove(swipeLayer); swipeLayer = null; }
+    const id = swipeSel.value;
+    if (id) {
+      swipeLayer = makeWMS(id, true);
+      attachClip(swipeLayer);
+      map.addLayer(swipeLayer);
+      document.getElementById('swipe-right-tag').textContent =
+        '▶ ' + (WMS_LAYERS.find(l => l.id === id)?.label || '');
+    }
+    updateUI();
+  });
+
+  // ── Clip logic
+  let swipeRatio = 0.5;
+  function getSwipeX() { return map.getSize()[0] * swipeRatio; }
+
+  function attachClip(layer) {
+    layer.on('prerender', e => {
+      const ctx = e.context, size = map.getSize(), x = getSwipeX();
+      ctx.save(); ctx.beginPath(); ctx.rect(x, 0, size[0] - x, size[1]); ctx.clip();
+    });
+    layer.on('postrender', e => e.context.restore());
+  }
+
+  function updateUI() {
+    const x = getSwipeX();
+    const hasSwipe = !!swipeSel.value;
+    document.getElementById('swipe-line').style.left      = x + 'px';
+    document.getElementById('swipe-line').style.opacity   = hasSwipe ? '1' : '0';
+    document.getElementById('swipe-handle').style.left    = x + 'px';
+    document.getElementById('swipe-handle').style.opacity = hasSwipe ? '1' : '0';
+    const tag = document.getElementById('swipe-right-tag');
+    tag.style.left    = (x + 14) + 'px';
+    tag.style.opacity = hasSwipe ? '1' : '0';
+    map.render();
+  }
+
+  // ── Drag handle
+  const handle = document.getElementById('swipe-handle');
+  let dragging = false;
+  handle.addEventListener('mousedown',  e => { dragging = true; handle.classList.add('dragging'); e.preventDefault(); });
+  handle.addEventListener('touchstart', e => { dragging = true; handle.classList.add('dragging'); e.preventDefault(); }, { passive: false });
+  document.addEventListener('mousemove', e => {
+    if (!dragging) return;
+    const rect = document.getElementById('map').getBoundingClientRect();
+    swipeRatio = Math.max(0, Math.min((e.clientX - rect.left) / rect.width, 1));
+    updateUI();
+  });
+  document.addEventListener('touchmove', e => {
+    if (!dragging) return;
+    const rect = document.getElementById('map').getBoundingClientRect();
+    swipeRatio = Math.max(0, Math.min((e.touches[0].clientX - rect.left) / rect.width, 1));
+    updateUI();
+  }, { passive: false });
+  document.addEventListener('mouseup',  () => { dragging = false; handle.classList.remove('dragging'); });
+  document.addEventListener('touchend', () => { dragging = false; handle.classList.remove('dragging'); });
+
+  // ── Panel toggles
+  document.getElementById('toggle-btn').addEventListener('click', () => {
+    document.getElementById('sidebar').classList.toggle('collapsed');
+  });
+  document.getElementById('swipe-panel-toggle').addEventListener('click', () => {
+    document.getElementById('swipe-panel').classList.toggle('collapsed');
+  });
+
+  // ── Loading
+  let loaded = false;
+  map.on('rendercomplete', () => { if (!loaded) { loaded = true; document.getElementById('loading').classList.add('hidden'); } });
+  map.once('postrender', updateUI);
+  window.addEventListener('resize', updateUI);
+</script>
+</body>
+</html>

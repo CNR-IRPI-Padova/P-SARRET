@@ -114,17 +114,17 @@
       min-width: 200px;
       transition: transform 0.3s ease, opacity 0.3s;
     }
-    #swipe-panel.collapsed { transform: translateY(-50%) translateX(calc(100% - 22px)); }
+    #swipe-panel.collapsed { transform: translateY(-50%) translateX(calc(100% - 30px)); }
 
     #swipe-panel-toggle {
-      position: absolute; top: 50%; left: -22px;
+      position: absolute; top: 50%; left: -30px;
       transform: translateY(-50%);
-      width: 22px; height: 44px;
+      width: 30px; height: 54px;
       background: rgba(13,17,23,0.92);
       border: 1px solid var(--border); border-right: none;
       border-radius: 6px 0 0 6px;
       cursor: pointer; display: flex; align-items: center; justify-content: center;
-      color: var(--muted); font-size: 0.65rem;
+      color: var(--muted); font-size: 0.9rem;
       transition: color 0.2s;
     }
     #swipe-panel-toggle:hover { color: var(--text); }
@@ -251,7 +251,7 @@
 <button id="toggle-btn" title="Toggle panel"><span class="toggle-arrow">◀</span></button>
 
 <!-- Right swipe panel -->
-<div id="swipe-panel">
+<div id="swipe-panel" class="collapsed">
   <button id="swipe-panel-toggle" title="Toggle swipe panel"><span class="swipe-toggle-arrow">▶</span></button>
   <div class="swipe-panel-title">Swipe Overlay</div>
   <div class="swipe-badge"><div class="swipe-dot"></div>shown on right side</div>
@@ -357,8 +357,13 @@
 
   function attachClip(layer) {
     layer.on('prerender', e => {
-      const ctx = e.context, size = map.getSize(), x = getSwipeX();
-      ctx.save(); ctx.beginPath(); ctx.rect(x, 0, size[0] - x, size[1]); ctx.clip();
+      const ctx = e.context;
+      const pixelRatio = e.frameState.pixelRatio;
+      const size = map.getSize();
+      const x = getSwipeX() * pixelRatio;
+      const w = (size[0] - getSwipeX()) * pixelRatio;
+      const h = size[1] * pixelRatio;
+      ctx.save(); ctx.beginPath(); ctx.rect(x, 0, w, h); ctx.clip();
     });
     layer.on('postrender', e => e.context.restore());
   }
